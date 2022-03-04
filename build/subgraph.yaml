@@ -1,0 +1,26 @@
+specVersion: 0.0.2
+schema:
+  file: schema.graphql
+dataSources:
+  - kind: ethereum
+    name: zStakeCorePool
+    network: mainnet
+    source:
+      address: "0x3aC551725ac98C5DCdeA197cEaaE7cDb8a71a2B4"
+      abi: zStakeCorePool
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.5
+      language: wasm/assemblyscript
+      entities:
+        - TokenStaked
+        - TokenUnstaked
+      abis:
+        - name: zStakeCorePool
+          file: zStakeCorePool\abis\zStakeCorePool.json
+      eventHandlers:
+        - event: Staked(indexed address,indexed address,uint256)
+          handler: handleStaked
+        - event: Unstaked(indexed address,indexed address,uint256)
+          handler: handleUnstaked
+      file: zStakeCorePool\zStakeCorePool.wasm
