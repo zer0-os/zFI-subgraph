@@ -1,4 +1,4 @@
-# zFI-lp-token-subgraph
+# zFI-subgraph
 
 zFI is a staking platform that has two pools. One for staking $WILD and one for staking the ETH/WILD LP token received from providing liquidity to the pool on Uniswap.
 
