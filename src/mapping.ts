@@ -4,7 +4,7 @@ import {
   YieldClaimed,
   StakeLockUpdated,
   PoolWeightUpdated,
-} from "../generated/zStakeCorePool/zStakeCorePool";
+} from "../generated/WildTokenPool/zStakeCorePool";
 import {
   Account,
   TokenStaked,
@@ -15,23 +15,15 @@ import {
 } from "../generated/schema";
 import { ethereum } from "@graphprotocol/graph-ts";
 
-enum Events {
-  Staked,
-  Unstaked,
-  YieldClaimed,
-  StakeLockUpdated,
-  PoolWeightUpdated
-}
-
-function resolveAccount(address: string) {
+function resolveAccount(address: string): Account {
   let account = Account.load(address);
   if (!account) {
-    account = new Account(address);
+    return new Account(address);
   }
   return account;
 }
 
-function id(event: ethereum.Event) {
+function id(event: ethereum.Event): string {
   const id = (event.block.number
     .toString()
     .concat("-")
@@ -42,11 +34,16 @@ function id(event: ethereum.Event) {
 export function handleStaked(event: Staked): void {
   const staked: TokenStaked = new TokenStaked(id(event));
 
-  const account = resolveAccount(event.params._from.toHexString());
-  account.save();
+  const by = resolveAccount(event.params._by.toHexString());
+  by.save();
 
-  staked.by = account.id;
+  const from = resolveAccount(event.params._from.toHexString());
+  from.save();
+
+  staked.by = by.id;
+  staked.from = from.id;
   staked.amount = event.params.amount;
+  staked.timestamp = event.block.timestamp;
   staked.save();
 }
 
@@ -54,11 +51,16 @@ export function handleUnstaked(event: Unstaked): void {
   // Consider also adding tx hash (but not in place of log index)
   const unstaked = new TokenUnstaked(id(event));
 
-  const account = resolveAccount(event.params._by.toHexString());
-  account.save();
+  const by = resolveAccount(event.params._by.toHexString());
+  by.save();
 
-  unstaked.by = account.id;
+  const to = resolveAccount(event.params._to.toHexString());
+  to.save();
+
+  unstaked.by = by.id;
+  unstaked.to = to.id;
   unstaked.amount = event.params.amount;
+  unstaked.timestamp = event.block.timestamp;
   unstaked.save();
 }
 
@@ -83,6 +85,7 @@ export function handleYieldClaimed(event: YieldClaimed): void {
 
   stakeYieldClaimed.by = account.id;
   stakeYieldClaimed.amount = event.params.amount;
+  stakeYieldClaimed.timestamp = event.block.timestamp;
   stakeYieldClaimed.save();
 }
 
@@ -97,3 +100,7 @@ export function handlePoolWeightUpdated(event: PoolWeightUpdated): void {
   tokenPoolWeightUpdated.toVal = event.params._toVal;
   tokenPoolWeightUpdated.save();
 }
+
+// make template for multiple chains
+// make a subgraph for rinkeby to deploy it to
+// then add SDK functionality to read it and feed to dApp

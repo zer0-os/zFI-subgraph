@@ -1,0 +1,7 @@
+{
+    "network": "rinkeby",
+    "wild_pool_address": "0xE0Bb298Afc5dC12918d02732c824DA44e7D61E2a",
+    "wild_pool_start_block": 10441482,
+    "lp_token_pool_address": "0xe7BEeedAf11eE695C4aE64A01b24F3F7eA294aB6",
+    "lp_token_pool_start_block": 10441480
+}

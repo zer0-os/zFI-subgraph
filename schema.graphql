@@ -1,13 +1,17 @@
 type TokenStaked @entity {
   id: ID!
   by: Account!
+  from: Account!
   amount: BigInt!
+  timestamp: BigInt!
 }
 
 type TokenUnstaked @entity {
   id: ID!
   by: Account!
+  to: Account!
   amount: BigInt!
+  timestamp: BigInt!
 }
 
 type TokenStakeLockUpdated @entity {
@@ -22,6 +26,7 @@ type StakeYieldClaimed @entity {
   id: ID!
   by: Account!
   amount: BigInt!
+  timestamp: BigInt!
 }
 
 type TokenPoolWeightUpdated @entity {
@@ -45,6 +50,7 @@ type Deposit @entity {
   pool: Pool!
   quantity: BigInt!
   lockTime: BigInt!
+  timestamp: BigInt!
 }
 
 # How to get this information?
