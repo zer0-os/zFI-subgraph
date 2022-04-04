@@ -24,10 +24,10 @@ function resolveAccount(address: string): Account {
 }
 
 function id(event: ethereum.Event): string {
-  const id = (event.block.number
+  const id = event.block.number
     .toString()
     .concat("-")
-    .concat(event.logIndex.toString()));
+    .concat(event.logIndex.toString());
   return id;
 }
 
@@ -100,7 +100,3 @@ export function handlePoolWeightUpdated(event: PoolWeightUpdated): void {
   tokenPoolWeightUpdated.toVal = event.params._toVal;
   tokenPoolWeightUpdated.save();
 }
-
-// make template for multiple chains
-// make a subgraph for rinkeby to deploy it to
-// then add SDK functionality to read it and feed to dApp
