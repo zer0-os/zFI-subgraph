@@ -52,13 +52,13 @@ export function handleStaked(event: Staked): void {
 
   const depositLength: BigInt = stakingPool.getDepositsLength(contractUser);
 
-  const index: BigInt = depositLength.minus(BigInt.fromString("1"));
-  const callResult = stakingPool.try_getDeposit(contractUser, index);
+  const depositId: BigInt = depositLength.minus(BigInt.fromString("1"));
+  const callResult = stakingPool.try_getDeposit(contractUser, depositId);
 
   if (callResult.reverted) {
     log.error(
       "Could not call to get deposit for account {} with depositLength {} using index {}",
-      [from.id, depositLength.toString(), index.toString()]
+      [from.id, depositLength.toString(), depositId.toString()]
     );
   } else {
     // "from" is always staker address while "by" is sometimes the contract
@@ -66,12 +66,11 @@ export function handleStaked(event: Staked): void {
     const deposit: Deposit = new Deposit(id(event));
 
     deposit.by = from.id;
-    deposit.index = index;
+    deposit.depositId = depositId;
     deposit.amount = event.params.amount;
     deposit.lockedFrom = callResult.value.lockedFrom;
     deposit.lockedUntil = callResult.value.lockedUntil;
     deposit.pool = pool.id;
-    deposit.txHash = event.transaction.hash;
     deposit.timestamp = event.block.timestamp;
     deposit.save();
   }
@@ -110,7 +109,6 @@ export function handleYieldClaimed(event: YieldClaimed): void {
   reward.for = account.id;
   reward.amount = event.params.amount;
   reward.pool = pool.id;
-  reward.txHash = event.transaction.hash;
   reward.timestamp = event.block.timestamp;
   reward.save();
 }
