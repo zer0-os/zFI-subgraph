@@ -1,16 +1,10 @@
 type Deposit @entity {
   id: ID!
   by: Account!
+  index: BigInt!
   amount: BigInt!
-  pool: Pool!
-  txHash: Bytes!
-  timestamp: BigInt!
-}
-
-type UnstakedDeposit @entity {
-  id: ID!
-  by: Account!
-  amount: BigInt!
+  lockedFrom: BigInt!
+  lockedUntil: BigInt!
   pool: Pool!
   txHash: Bytes!
   timestamp: BigInt!
@@ -27,32 +21,11 @@ type Reward @entity {
 
 type Account @entity {
   id: ID!
-  stakes: [Deposit!]! @derivedFrom(field: "by")
-  unstakes: [UnstakedDeposit!]! @derivedFrom(field: "by")
+  deposits: [Deposit!]! @derivedFrom(field: "by")
 }
 
 type Pool @entity {
   id: ID!
+  weight: BigInt!
   deposits: [Deposit!]! @derivedFrom(field: "pool")
-}
-
-type TokenStakeLockUpdated @entity {
-  id: ID!
-  by: Account!
-  depositId: BigInt!
-  lockedFrom: BigInt!
-  lockedUntil: BigInt!
-  pool: Pool!
-  txHash: Bytes!
-  timestamp: BigInt!
-}
-
-type TokenPoolWeightUpdated @entity {
-  id: ID!
-  by: Account!
-  fromVal: BigInt!
-  toVal: BigInt!
-  pool: Pool!
-  txHash: Bytes!
-  timestamp: BigInt!
 }

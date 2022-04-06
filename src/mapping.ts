@@ -4,17 +4,17 @@ import {
   YieldClaimed,
   StakeLockUpdated,
   PoolWeightUpdated,
+  zStakeCorePool,
+  zStakeCorePool__getDepositResultValue0Struct,
 } from "../generated/WildTokenPool/zStakeCorePool";
+import { Deposit, Reward, Account, Pool } from "../generated/schema";
 import {
-  Deposit,
-  UnstakedDeposit,
-  Reward,
-  Account,
-  TokenStakeLockUpdated,
-  TokenPoolWeightUpdated,
-  Pool,
-} from "../generated/schema";
-import { ethereum, log } from "@graphprotocol/graph-ts";
+  Address,
+  BigInt,
+  ByteArray,
+  ethereum,
+  log,
+} from "@graphprotocol/graph-ts";
 
 function resolveAccount(address: string): Account {
   let account = Account.load(address);
@@ -26,8 +26,8 @@ function resolveAccount(address: string): Account {
 
 function resolvePool(address: string): Pool {
   let pool = Pool.load(address);
-  if(!pool) {
-    return new Pool(address)
+  if (!pool) {
+    return new Pool(address);
   }
   return pool as Pool;
 }
@@ -41,68 +41,70 @@ function id(event: ethereum.Event): string {
 }
 
 export function handleStaked(event: Staked): void {
-  // No "index" or "lockTime" on event
-  const deposit: Deposit = new Deposit(id(event));
-
-  const pool: Pool = resolvePool(event.address.toHexString())
+  const pool: Pool = resolvePool(event.address.toHexString());
   pool.save();
 
-  // "from" is always staker address while "by" is sometimes the contract
-  // staking on behalf of the staker. Because of this, always use "from"
-  const from = resolveAccount(event.params._from.toHexString());
+  const from: Account = resolveAccount(event.params._from.toHexString());
   from.save();
 
-  deposit.by = from.id;
-  deposit.amount = event.params.amount;
-  deposit.pool = pool.id;
-  deposit.txHash = event.transaction.hash;
-  deposit.timestamp = event.block.timestamp;
-  deposit.save();
-}
+  const contractUser = Address.fromString(from.id);
+  const stakingPool = zStakeCorePool.bind(event.address);
 
-export function handleUnstaked(event: Unstaked): void {
-  const unstaked = new UnstakedDeposit(id(event));
+  const depositLength: BigInt = stakingPool.getDepositsLength(contractUser);
 
-  const pool: Pool = resolvePool(event.address.toHexString())
-  pool.save();
+  const one = new BigInt(1);
+  const index: BigInt = depositLength.minus(one);
+  const callResult = stakingPool.try_getDeposit(contractUser, index);
 
-  // "to" is always staker address and so is "by", because nobody
-  // calls to unstake other than the staker, but use "to" for consistency
-  // with the above use of "from"
-  const to = resolveAccount(event.params._to.toHexString());
-  to.save();
+  if (callResult.reverted) {
+    log.error(
+      "Could not call to get deposit for account {} with depositLength {} using index {}",
+      [from.id, depositLength.toString(), index.toString()]
+    );
+  } else {
+    // "from" is always staker address while "by" is sometimes the contract
+    // staking on behalf of the staker. Because of this, always use "from"
+    const deposit: Deposit = new Deposit(id(event));
 
-  unstaked.by = to.id;
-  unstaked.amount = event.params.amount;
-  unstaked.pool = pool.id;
-  unstaked.txHash = event.transaction.hash;
-  unstaked.timestamp = event.block.timestamp;
-  unstaked.save();
+    deposit.by = from.id;
+    deposit.index = index;
+    deposit.amount = event.params.amount;
+    deposit.lockedFrom = callResult.value.lockedFrom;
+    deposit.lockedUntil = callResult.value.lockedUntil;
+    deposit.pool = pool.id;
+    deposit.txHash = event.transaction.hash;
+    deposit.timestamp = event.block.timestamp;
+    deposit.save();
+  }
 }
 
 export function handleStakeLockUpdate(event: StakeLockUpdated): void {
-  const stakeLockUpdated = new TokenStakeLockUpdated(id(event));
-
-  const pool: Pool = resolvePool(event.address.toHexString())
-  pool.save();
-
   const account = resolveAccount(event.params._by.toHexString());
   account.save();
 
-  stakeLockUpdated.by = account.id;
-  stakeLockUpdated.depositId = event.params.depositId;
-  stakeLockUpdated.lockedFrom = event.params.lockedFrom;
-  stakeLockUpdated.lockedUntil = event.params.lockedUntil;
-  stakeLockUpdated.pool = pool.id;
-  stakeLockUpdated.txHash = event.transaction.hash;
-  stakeLockUpdated.timestamp = event.block.timestamp;
-  stakeLockUpdated.save();
+  const index = event.params.depositId.toI32();
+
+  log.error("DepositId to I32 - {}", [index.toString()]);
+
+  const depositId = account.deposits[index];
+
+  const deposit: Deposit | null = Deposit.load(depositId);
+
+  if (deposit) {
+    deposit.lockedUntil = event.params.lockedUntil;
+    deposit.save();
+  } else {
+    log.error("Unable to load deposit with ID {} from user {}", [
+      depositId,
+      account.id,
+    ]);
+  }
 }
 
 export function handleYieldClaimed(event: YieldClaimed): void {
   const reward = new Reward(id(event));
 
-  const pool: Pool = resolvePool(event.address.toHexString())
+  const pool: Pool = resolvePool(event.address.toHexString());
   pool.save();
 
   const account = resolveAccount(event.params._by.toHexString());
@@ -116,20 +118,8 @@ export function handleYieldClaimed(event: YieldClaimed): void {
   reward.save();
 }
 
-export function handlePoolWeightUpdated(event: PoolWeightUpdated): void { // no
-  const tokenPoolWeightUpdated = new TokenPoolWeightUpdated(id(event));
-
-  const pool: Pool = resolvePool(event.address.toHexString())
+export function handlePoolWeightUpdated(event: PoolWeightUpdated): void {
+  const pool: Pool = resolvePool(event.address.toHexString());
+  pool.weight = event.params._toVal;
   pool.save();
-
-  const account = resolveAccount(event.params._by.toHexString());
-  account.save();
-
-  tokenPoolWeightUpdated.by = account.id;
-  tokenPoolWeightUpdated.fromVal = event.params._fromVal;
-  tokenPoolWeightUpdated.toVal = event.params._toVal;
-  tokenPoolWeightUpdated.pool = pool.id;
-  tokenPoolWeightUpdated.txHash = event.transaction.hash;
-  tokenPoolWeightUpdated.timestamp = event.block.timestamp;
-  tokenPoolWeightUpdated.save();
 }
