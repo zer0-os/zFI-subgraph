@@ -1,12 +1,11 @@
 type Deposit @entity {
   id: ID!
   by: Account!
-  index: BigInt!
+  depositId: BigInt!
   amount: BigInt!
   lockedFrom: BigInt!
   lockedUntil: BigInt!
   pool: Pool!
-  txHash: Bytes!
   timestamp: BigInt!
 }
 
@@ -15,7 +14,6 @@ type Reward @entity {
   for: Account!
   amount: BigInt!
   pool: Pool!
-  txHash: Bytes!
   timestamp: BigInt!
 }
 
