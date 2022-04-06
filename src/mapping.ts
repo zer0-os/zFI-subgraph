@@ -5,13 +5,11 @@ import {
   StakeLockUpdated,
   PoolWeightUpdated,
   zStakeCorePool,
-  zStakeCorePool__getDepositResultValue0Struct,
 } from "../generated/WildTokenPool/zStakeCorePool";
 import { Deposit, Reward, Account, Pool } from "../generated/schema";
 import {
   Address,
   BigInt,
-  ByteArray,
   ethereum,
   log,
 } from "@graphprotocol/graph-ts";
