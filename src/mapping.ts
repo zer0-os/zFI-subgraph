@@ -52,8 +52,7 @@ export function handleStaked(event: Staked): void {
 
   const depositLength: BigInt = stakingPool.getDepositsLength(contractUser);
 
-  const one = new BigInt(1);
-  const index: BigInt = depositLength.minus(one);
+  const index: BigInt = depositLength.minus(BigInt.fromString("1"));
   const callResult = stakingPool.try_getDeposit(contractUser, index);
 
   if (callResult.reverted) {
@@ -83,8 +82,6 @@ export function handleStakeLockUpdate(event: StakeLockUpdated): void {
   account.save();
 
   const index = event.params.depositId.toI32();
-
-  log.error("DepositId to I32 - {}", [index.toString()]);
 
   const depositId = account.deposits[index];
 
