@@ -1,0 +1,7 @@
+{
+  "network": "mainnet",
+  "wild_pool_address": "0x3aC551725ac98C5DCdeA197cEaaE7cDb8a71a2B4",
+  "wild_pool_start_block": 13820345,
+  "lp_token_pool_address": "0x9E87a268D42B0Aba399C121428fcE2c626Ea01FF",
+  "lp_token_pool_start_block": 13820342
+}

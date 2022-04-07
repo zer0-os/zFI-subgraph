@@ -4,13 +4,18 @@
   "scripts": {
     "codegen": "graph codegen",
     "build": "graph build",
-    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ JamesEarle/zfi",
-    "create-local": "graph create --node http://localhost:8020/ JamesEarle/zfi",
-    "remove-local": "graph remove --node http://localhost:8020/ JamesEarle/zfi",
-    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 JamesEarle/zfi"
+    "prepare:rinkeby": "mustache config/rinkeby.json subgraph.template.yml > subgraph.yaml",
+    "prepare:mainnet": "mustache config/mainnet.json subgraph.template.yml > subgraph.yaml",
+    "deploy:rinkeby": "yarn prepare:rinkeby && yarn internal:deploy",
+    "deploy:mainnet": "yarn prepare:mainnet && yarn internal:deploy",
+    "internal:deploy": "graph codegen && graph deploy --product hosted-service --node https://api.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/",
+    "auth": "graph auth https://api.thegraph.com/deploy/"
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "0.27.0",
     "@graphprotocol/graph-ts": "0.24.1"
+  },
+  "devDependencies": {
+    "mustache": "4.2.0"
   }
 }

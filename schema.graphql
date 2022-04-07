@@ -1,54 +1,29 @@
-type TokenStaked @entity {
-  id: ID!
-  by: Account!
-  amount: BigInt!
-}
-
-type TokenUnstaked @entity {
-  id: ID!
-  by: Account!
-  amount: BigInt!
-}
-
-type TokenStakeLockUpdated @entity {
+type Deposit @entity {
   id: ID!
   by: Account!
   depositId: BigInt!
+  amount: BigInt!
   lockedFrom: BigInt!
   lockedUntil: BigInt!
+  pool: Pool!
+  timestamp: BigInt!
 }
 
-type StakeYieldClaimed @entity {
+type Reward @entity {
   id: ID!
-  by: Account!
+  for: Account!
   amount: BigInt!
-}
-
-type TokenPoolWeightUpdated @entity {
-  id: ID!
-  by: Account!
-  fromVal: BigInt!
-  toVal: BigInt!
+  pool: Pool!
+  timestamp: BigInt!
 }
 
 type Account @entity {
   id: ID!
   deposits: [Deposit!]! @derivedFrom(field: "by")
-  stakes: [TokenStaked!]! @derivedFrom(field: "by")
-  unstakes: [TokenUnstaked!]! @derivedFrom(field: "by")
 }
 
-type Deposit @entity {
-  id: ID!
-  by: Account!
-  index: Int!
-  pool: Pool!
-  quantity: BigInt!
-  lockTime: BigInt!
-}
-
-# How to get this information?
 type Pool @entity {
   id: ID!
+  weight: BigInt!
   deposits: [Deposit!]! @derivedFrom(field: "pool")
 }
