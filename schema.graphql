@@ -2,7 +2,7 @@ type Deposit @entity {
   id: ID!
   by: Account!
   depositId: BigInt!
-  amount: BigInt!
+  tokenAmount: BigInt!
   lockedFrom: BigInt!
   lockedUntil: BigInt!
   pool: Pool!
@@ -12,7 +12,7 @@ type Deposit @entity {
 type Reward @entity {
   id: ID!
   for: Account!
-  amount: BigInt!
+  tokenAmount: BigInt!
   pool: Pool!
   timestamp: BigInt!
 }

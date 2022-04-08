@@ -65,7 +65,7 @@ export function handleStaked(event: Staked): void {
 
     deposit.by = from.id;
     deposit.depositId = depositId;
-    deposit.amount = event.params.amount;
+    deposit.tokenAmount = event.params.amount;
     deposit.lockedFrom = callResult.value.lockedFrom;
     deposit.lockedUntil = callResult.value.lockedUntil;
     deposit.pool = pool.id;
@@ -105,7 +105,7 @@ export function handleYieldClaimed(event: YieldClaimed): void {
   account.save();
 
   reward.for = account.id;
-  reward.amount = event.params.amount;
+  reward.tokenAmount = event.params.amount;
   reward.pool = pool.id;
   reward.timestamp = event.block.timestamp;
   reward.save();
