@@ -42,11 +42,13 @@ export function handleStaked(event: Staked): void {
   const pool: Pool = resolvePool(event.address.toHexString());
   pool.save();
 
+  // "from" is always staker address while "by" is sometimes the contract
+  // staking on behalf of the staker. Because of this, always use "from"
   const from: Account = resolveAccount(event.params._from.toHexString());
   from.save();
 
-  const contractUser = Address.fromString(from.id);
   const stakingPool = zStakeCorePool.bind(event.address);
+  const contractUser = Address.fromString(from.id);
 
   const depositLength: BigInt = stakingPool.getDepositsLength(contractUser);
 
@@ -59,9 +61,8 @@ export function handleStaked(event: Staked): void {
       [from.id, depositLength.toString(), depositId.toString()]
     );
   } else {
-    // "from" is always staker address while "by" is sometimes the contract
-    // staking on behalf of the staker. Because of this, always use "from"
-    const deposit: Deposit = new Deposit(id(event));
+    const entityId = pool.id + from.id + depositId.toString()
+    const deposit: Deposit = new Deposit(entityId);
 
     deposit.by = from.id;
     deposit.depositId = depositId;
@@ -74,23 +75,34 @@ export function handleStaked(event: Staked): void {
   }
 }
 
-export function handleStakeLockUpdate(event: StakeLockUpdated): void {
-  const account = resolveAccount(event.params._by.toHexString());
-  account.save();
+export function handleStakeLockUpdated(event: StakeLockUpdated): void {
+  const pool: Pool = resolvePool(event.address.toHexString());
+  pool.save();
 
-  const index = event.params.depositId.toI32();
+  const by: Account = resolveAccount(event.params._by.toHexString());
+  by.save();
 
-  const depositId = account.deposits[index];
+  const stakingPool = zStakeCorePool.bind(event.address);
+  const contractUser = Address.fromString(by.id);
 
-  const deposit: Deposit | null = Deposit.load(depositId);
+  const depositLength: BigInt = stakingPool.getDepositsLength(contractUser);
+
+  const depositId: BigInt = depositLength.minus(BigInt.fromString("1"));
+
+  // form entityId to be unique for both pools per user
+  const entityId = pool.id + by.id + depositId.toString()
+
+  // same thing from above that combines user address, pool address, length-1
+  // in this case, event params depositId
+  const deposit: Deposit | null = Deposit.load(entityId);
 
   if (deposit) {
     deposit.lockedUntil = event.params.lockedUntil;
     deposit.save();
   } else {
     log.error("Unable to load deposit with ID {} from user {}", [
-      depositId,
-      account.id,
+      entityId,
+      by.id,
     ]);
   }
 }
