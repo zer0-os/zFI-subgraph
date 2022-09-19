@@ -21,6 +21,7 @@ dataSources:
         - StakeYieldClaimed
         - TokenPoolWeightUpdated
         - Account
+        - Reward
         - Deposit
         - Pool
       abis:
@@ -29,6 +30,8 @@ dataSources:
       eventHandlers:
         - event: Staked(indexed address,indexed address,uint256)
           handler: handleStaked
+        - event: Unstaked(indexed address,indexed address,uint256)
+          handler: handleUnstaked
         - event: StakeLockUpdated(indexed address,uint256,uint64,uint64)
           handler: handleStakeLockUpdated
         - event: YieldClaimed(indexed address,indexed address,uint256)
