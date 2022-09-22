@@ -38,34 +38,6 @@ function id(event: ethereum.Event): string {
     .concat(event.logIndex.toString());
   return id;
 }
-// 0x9e2c8a5b00000000000000000000000000000000000000000000000000000000000000070
-// 0x9e2c8a5b000000000000000000000000000000000000000000000000000000000000000700000000000000000000000000000000000000000000000029a2241af62c0000
-// ethabi cargo crate does not expect function signature, but instead expects a tuple offset.
-function getTxData(event: ethereum.Event): Bytes {
-  //take away function signature
-  const inputDataHexString = event.transaction.input.toHexString().slice(10);
-
-  // prepend tuple offset
-  // const hexStringToDecode = '0x0000000000000000000000000000000000000000000000000000000000000020' + inputDataHexString;
-  return Bytes.fromByteArray(Bytes.fromHexString(inputDataHexString));
-}
-
-// 0x9e2c8a5b000000000000000000000000000000000000000000000000000000000000000700000000000000000000000000000000000000000000000029a2241af62c0000
-function getUnstakeDepositId(event: ethereum.Event): ethereum.Value { // number or string
-  const depositIdHexString = event.transaction.input.toHexString().slice(10, 74);
-  const depositIdAsBytesArray = Bytes.fromByteArray(Bytes.fromHexString(depositIdHexString));
-  const depositId = ethereum.decode(ethereum.ValueKind.UINT.toString(), depositIdAsBytesArray);
-  // log.debug("depositId for unstaked event at {} is: {}", [event.transaction.hash.toString(), depositId!.toString()]);
-  return depositId!
-}
-
-function getUnstakeAmount(event: ethereum.Event): ethereum.Value {
-  const amountHexString = event.transaction.input.toHexString().slice(74);
-  const amountAsBytesArray = Bytes.fromByteArray(Bytes.fromHexString(amountHexString));
-  const amount = ethereum.decode(ethereum.ValueKind.UINT.toString(), amountAsBytesArray);
-  // log.debug("amount for unstaked event at {}: {}", [event.transaction.hash.toString(), amount!.toString()]);
-  return amount!
-}
 
 // Create an entity for the Deposit which just got made
 export function handleStaked(event: Staked): void {
@@ -96,7 +68,7 @@ export function handleStaked(event: Staked): void {
       [from.id, depositLength.toString(), depositId.toString()]
     );
   } else {
-    const entityId = pool.id + from.id + depositId.toString();
+    const entityId = pool.id.concat(from.id).concat(depositId.toString());
     log.info("EntityId for staked event is: {}", [entityId.toString()]);
     const deposit: Deposit = new Deposit(entityId);
 
@@ -111,10 +83,6 @@ export function handleStaked(event: Staked): void {
   }
 }
 
-// A) get tx hash from event if you can, then etherscan provider to get event data on chain
-// B) get etherscan provider and find most recent unstaked event, get that event's data
-// c) Get contract, get all of that user's deposits and iterate until there is a matching timestamp
-
 // Update the existing deposit after it was unstaked
 export function handleUnstaked(event: Unstaked): void {
   // "to" is the address to send the unstaked tokens to, usually the token holder
@@ -124,41 +92,30 @@ export function handleUnstaked(event: Unstaked): void {
   const pool: Pool = resolvePool(event.address.toHexString());
   pool.save();
 
-  // input bytes need to be "massaged" before reading
-  // https://medium.com/@r2d2_68242/indexing-transaction-input-data-in-a-subgraph-6ff5c55abf20
-  const depositId = getUnstakeDepositId(event);
-  log.info("deposit id kind: {}", [depositId.kind.toString()]);
-  log.info("deposit id data: {}", [depositId.data.toString()]);
+  const depositIdHexString = event.transaction.input.toHexString().slice(10, 74);
+  const depositIdAsBytesArray = Bytes.fromByteArray(Bytes.fromHexString(depositIdHexString));
+  const depositIdAsEthereumValue = ethereum.decode(ethereum.ValueKind.UINT.toString(), depositIdAsBytesArray);
 
-  const amount = getUnstakeAmount(event);
+  if (!depositIdAsEthereumValue) {
+    log.error("Could not decode depositId {} for user {} in pool {}", [depositIdAsBytesArray.toHexString(), to.id, pool.id]);
+    return;
+  }
 
-  // // const decodedInput: ethereum.Value | null = ethereum.decode(ethereum.ValueKind.UINT.toString(), txInput);
-  // // if (!decodedInput) {
-  // //   log.error("Could not decode input for transaction {}", [event.transaction.hash.toHexString()])
-  // //   return;
-  // // }
-  // log.info("Decoded input kind: {}", [decodedInput.kind.toString()]);
-  // log.info("Decoded input data: {}", [decodedInput.data.toString()]);
-  // log.info("Decoded input as BigInt: {}", [decodedInput.toBigInt().toString()]);
-  // log.info("Decoded input as int32: {}", [decodedInput.toBigIntArray().toString()]);
-  // log.info('First decoded field: {}', [decodedInput.toTuple()[0].toString()]);
-  // log.info('Second decoded field: {}', [decodedInput.toTuple()[1].toString()]);
+  const depositId = depositIdAsEthereumValue.toBigInt().toString();
 
-  // const depositId = txInput.at(0).toString()
-  // log.debug("DepositId for unstaked event is: {}", [depositId]);
-  const entityId = pool.id + to.id + depositId.data.toString();
-  // // log.debug("EntityId for unstaked event is: {}", [entityId]);
-
+  const entityId = pool.id.concat(to.id).concat(depositId);
   const deposit = Deposit.load(entityId);
 
-  if (!deposit) {
-    log.error(
-      "No deposit with id {} found for user with address {} in pool address {}",
-      [depositId.toString(), to.id, pool.id]
-    );
-  } else {
-    deposit.tokenAmount = deposit.tokenAmount.minus(BigInt.fromU64(amount.data));
+  if (deposit) {
+    // The contract verifies this amount must be equal to or less than the deposit
+    // So it is safe to assume this will never be a negative value.
+    deposit.tokenAmount = deposit.tokenAmount.minus(event.params.amount);
     deposit.save();
+  } else {
+    log.error(
+      "No deposit found with id {} for user with address {} in pool {}",
+      [depositId, to.id, pool.id]
+    );
   }
 }
 
@@ -177,7 +134,7 @@ export function handleStakeLockUpdated(event: StakeLockUpdated): void {
   const depositId: BigInt = depositLength.minus(BigInt.fromString("1"));
 
   // form entityId to be unique for both pools per user
-  const entityId = pool.id + by.id + depositId.toString()
+  const entityId = pool.id.concat(by.id).concat(depositId.toString());
 
   // same thing from above that combines user address, pool address, length-1
   // in this case, event params depositId
