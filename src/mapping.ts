@@ -126,12 +126,8 @@ export function handleStakeLockUpdated(event: StakeLockUpdated): void {
   const by: Account = resolveAccount(event.params._by.toHexString());
   by.save();
 
-  const stakingPool = zStakeCorePool.bind(event.address);
-  const contractUser = Address.fromString(by.id);
-
-  const depositLength: BigInt = stakingPool.getDepositsLength(contractUser);
-
-  const depositId: BigInt = depositLength.minus(BigInt.fromString("1"));
+  // also has to be updated
+  const depositId = event.params.depositId;
 
   // form entityId to be unique for both pools per user
   const entityId = pool.id.concat(by.id).concat(depositId.toString());
