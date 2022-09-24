@@ -10,6 +10,7 @@ import { Deposit, Reward, Account, Pool } from "../generated/schema";
 import {
   Address,
   BigInt,
+  Bytes,
   ethereum,
   log,
 } from "@graphprotocol/graph-ts";
@@ -38,6 +39,7 @@ function id(event: ethereum.Event): string {
   return id;
 }
 
+// Create an entity for the Deposit which just got made
 export function handleStaked(event: Staked): void {
   const pool: Pool = resolvePool(event.address.toHexString());
   pool.save();
@@ -52,7 +54,12 @@ export function handleStaked(event: Staked): void {
 
   const depositLength: BigInt = stakingPool.getDepositsLength(contractUser);
 
+  // There is always at least one deposit because for this to be triggered
+  // a deposit has been made
   const depositId: BigInt = depositLength.minus(BigInt.fromString("1"));
+  log.info("DepositId for staked event is: {}", [depositId.toString()]);
+
+  // Confirm the existence of that deposit on chain
   const callResult = stakingPool.try_getDeposit(contractUser, depositId);
 
   if (callResult.reverted) {
@@ -61,7 +68,8 @@ export function handleStaked(event: Staked): void {
       [from.id, depositLength.toString(), depositId.toString()]
     );
   } else {
-    const entityId = pool.id + from.id + depositId.toString()
+    const entityId = pool.id.concat(from.id).concat(depositId.toString());
+    log.info("EntityId for staked event is: {}", [entityId.toString()]);
     const deposit: Deposit = new Deposit(entityId);
 
     deposit.by = from.id;
@@ -72,6 +80,42 @@ export function handleStaked(event: Staked): void {
     deposit.pool = pool.id;
     deposit.timestamp = event.block.timestamp;
     deposit.save();
+  }
+}
+
+// Update the existing deposit after it was unstaked
+export function handleUnstaked(event: Unstaked): void {
+  // "to" is the address to send the unstaked tokens to, usually the token holder
+  const to: Account = resolveAccount(event.params._to.toHexString());
+  to.save();
+
+  const pool: Pool = resolvePool(event.address.toHexString());
+  pool.save();
+
+  const depositIdHexString = event.transaction.input.toHexString().slice(10, 74);
+  const depositIdAsBytesArray = Bytes.fromByteArray(Bytes.fromHexString(depositIdHexString));
+  const depositIdAsEthereumValue = ethereum.decode(ethereum.ValueKind.UINT.toString(), depositIdAsBytesArray);
+
+  if (!depositIdAsEthereumValue) {
+    log.error("Could not decode depositId {} for user {} in pool {}", [depositIdAsBytesArray.toHexString(), to.id, pool.id]);
+    return;
+  }
+
+  const depositId = depositIdAsEthereumValue.toBigInt().toString();
+
+  const entityId = pool.id.concat(to.id).concat(depositId);
+  const deposit = Deposit.load(entityId);
+
+  if (deposit) {
+    // The contract verifies this amount must be equal to or less than the deposit
+    // So it is safe to assume this will never be a negative value.
+    deposit.tokenAmount = deposit.tokenAmount.minus(event.params.amount);
+    deposit.save();
+  } else {
+    log.error(
+      "No deposit found with id {} for user with address {} in pool {}",
+      [depositId, to.id, pool.id]
+    );
   }
 }
 
@@ -90,7 +134,7 @@ export function handleStakeLockUpdated(event: StakeLockUpdated): void {
   const depositId: BigInt = depositLength.minus(BigInt.fromString("1"));
 
   // form entityId to be unique for both pools per user
-  const entityId = pool.id + by.id + depositId.toString()
+  const entityId = pool.id.concat(by.id).concat(depositId.toString());
 
   // same thing from above that combines user address, pool address, length-1
   // in this case, event params depositId
