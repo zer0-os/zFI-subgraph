@@ -1,0 +1,7 @@
+{
+  "network": "goerli",
+  "wild_pool_address": "0x376030f58c76ECC288a4fce8F88273905544bC07",
+  "wild_pool_start_block": 7757061,
+  "lp_token_pool_address": "0xCa0F071fcf5b36436F75E422b5Bd23666015b9f9",
+  "lp_token_pool_start_block": 7757059
+}
